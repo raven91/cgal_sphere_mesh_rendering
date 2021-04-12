@@ -9,10 +9,10 @@
 #include <sstream>
 #include <cmath>
 
-GLfloat Renderer::x_rot_ = -0.f;
+GLfloat Renderer::x_rot_ = 0.3f;
 GLfloat Renderer::y_rot_ = 0.f;
 GLfloat Renderer::z_rot_ = 0.f;
-glm::vec3 Renderer::camera_pos_ = glm::vec3(0.0f, 0.0f, 3.5f * 1e-5f);
+glm::vec3 Renderer::camera_pos_ = glm::vec3(0.0f, -1.0f, 5.5f) * 1e-5f;
 glm::vec3 Renderer::camera_front_ = glm::normalize(glm::vec3(0.0f, 0.0f, -2.0f));
 glm::vec3 Renderer::camera_up_ = glm::vec3(0.0f, 1.0f, 0.0f);
 float Renderer::delta_time_ = 0.0f;  // Time between current frame and last frame
@@ -59,7 +59,7 @@ void Renderer::Start()
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
   glfwWindowHint(GLFW_SAMPLES, 4); // MSAA
 
-  window = glfwCreateWindow(1280 / 1, 1280 / 1, "Sphere Mesh", NULL, NULL);
+  window = glfwCreateWindow(1280 / 1, 1280 / 1, "Deformable Cell Model", NULL, NULL);
   if (!window)
   {
     glfwTerminate();
@@ -99,7 +99,7 @@ void Renderer::Start()
 
   InitializeSphereDcm();
 //  ReadSphereOff();
-//  ReadPlaneOff();
+  ReadPlaneOff();
   while (!glfwWindowShouldClose(window))
   {
     DisplayFunc(window, vao, vbo, element_buffer, shader_program);
@@ -254,7 +254,7 @@ void Renderer::InitializeSphereDcm()
       sphere_vertices_.emplace_back(x, y, z);
     }
 
-    CentralizeSphere();
+//    CentralizeSphere();
   }
 
   std::string file_name_for_normals("/Users/nikita/Documents/Projects/DeformableCellModel/normals.txt");
@@ -306,7 +306,7 @@ void Renderer::ReadNewSphereDcm()
         std::cout << "EOF reached" << std::endl;
       }
 
-      CentralizeSphere();
+//      CentralizeSphere();
     }
 
     if (file_for_normals_.good())
@@ -378,13 +378,15 @@ void Renderer::ReadPlaneOff()
 
     plane_vertices_ = std::vector<glm::vec3>(n_vertices);
     float x, y, z;
-    float norm = 1.0f, scaling = 1.0f, sphere_radius = 10e-6;
+    const float norm = 1.0f, sphere_radius = 10e-6;
+    float scaling = 1.0f;
+    const glm::vec3 downward_shift(0.0f, 0.0f, -1.1f * sphere_radius);
     for (int i = 0; i < n_vertices; ++i)
     {
       file >> x >> y >> z;
 //      norm = std::hypot(x, y, z);
       scaling = sphere_radius / norm;
-      plane_vertices_[i] = glm::vec3(x, y, z) * scaling;
+      plane_vertices_[i] = glm::vec3(x, y, z) * scaling + downward_shift;
     } // i
 
     plane_faces_ = std::vector<glm::ivec3>(n_faces);
@@ -482,7 +484,7 @@ void Renderer::DisplayFunc(GLFWwindow *window, GLuint *vao, GLuint *vbo, GLuint 
   CreateTransformationMatrices(width, height, model, view, projection);
   ImportTransformationMatrices(shader_program[0], model, view, projection);
   ImportTransformationMatrices(shader_program[1], model, view, projection);
-//  ImportTransformationMatrices(shader_program[2], model, view, projection);
+  ImportTransformationMatrices(shader_program[2], model, view, projection);
 
   // Render a sphere as a solid object
   glUseProgram(shader_program[1]);
@@ -492,8 +494,9 @@ void Renderer::DisplayFunc(GLFWwindow *window, GLuint *vao, GLuint *vbo, GLuint 
   glUseProgram(shader_program[0]);
   RenderSphereMesh(vao[0], vbo[0], element_buffer[0], shader_program[0]);
 
-//  glUseProgram(shader_program[2]);
-//  RenderPlane(vao[2], vbo[2], element_buffer[2], shader_program[2]);
+  // Render a plane
+  glUseProgram(shader_program[2]);
+  RenderPlane(vao[2], vbo[2], element_buffer[2], shader_program[2]);
 }
 
 void Renderer::RenderSphereMesh(GLuint vao, GLuint vbo, GLuint element_buffer, GLuint shader_program)
